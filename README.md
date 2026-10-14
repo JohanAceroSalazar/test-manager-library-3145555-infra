@@ -1,50 +1,75 @@
 # test-manager-library-3145555-infra
 
-> **Prueba técnica · Ficha ADSO 3145555**
-> Horario: **miércoles 14 de octubre de 2026, de 6:50 a. m. a 11:00 a. m.** (hora Colombia). Entrega a las **11:00 a. m.**
+Infrastructure for *Manager Library*: Docker Compose services, network, persistent PostgreSQL storage, and an empty database engine.
 
-Este repositorio es la **infraestructura** de *Manager Library*: contenedores, red, volúmenes y el motor de base de datos vacío. **Empieza vacío a propósito**: se construye en el fork de cada aprendiz.
+## Scope and SDD traceability
 
-## Instrucciones
+The mandatory stack is PHP/Laravel, React, PostgreSQL 16, and Docker Compose. The Python and .NET directories in the
+[specification repository](https://github.com/code-sena/test-manager-library-3145555-docs) are references; their business rules,
+data model, HTTP contract, and acceptance criteria remain mandatory.
 
-Cada aprendiz debe **crear el fork** de los seis repositorios del proyecto y **resolver el proyecto
-con el spec planteado**.
-
-1. Hacer fork, a su cuenta de GitHub, de cada repositorio de la tabla del final.
-2. Leer el spec en [`test-manager-library-3145555-docs`](https://github.com/code-sena/test-manager-library-3145555-docs).
-   Se entrega en dos versiones: `spec-python/` y `spec-.net/`.
-3. Desarrollar en los forks.
-
-## El reto se desarrolla con React y PHP (Laravel)
-
-El spec está escrito para Python y para .NET, pero el reto **no** se hace en esos lenguajes:
-
-| Capa | Tecnología del reto |
+| Specification source | Infrastructure outcome |
 |---|---|
-| Frontend | React |
-| Backend | PHP con Laravel |
+| `spec.md` §5, RNF-5 | Compose defines one command for the system and starts PostgreSQL without application tables. |
+| `tasks.md`, T-20 | Compose declares the database, Laravel API, and React frontend services. Completion still depends on the API and frontend Dockerfiles and their integration validation. |
+| `constitution.md`, Article V; ADR-001 | Infrastructure creates only the database engine, user, volume, and network. Laravel migrations own DDL, constraints, extensions, and category seed data. |
+| `data-model.md` §§3–4 | No SQL initialization is included here. Laravel must create the `library` schema, six tables, indexes, constraints, and fixed categories through migrations. |
+| `data-model.md` §6; `spec.md`, RN-6 | PostgreSQL is explicitly configured for UTC. |
 
-Lo que el spec define sobre el negocio —historias, criterios de aceptación, reglas, contrato de la
-API, modelo de datos— se respeta. Lo que define sobre la tecnología se traduce a React y Laravel.
+## Prerequisites
 
-## La prueba no consiste en escribir el código
+- Docker Engine with Docker Compose v2.
+- Sibling repositories with these exact directory names next to this repository:
+  - `test-manager-library-3145555-api`
+  - `test-manager-library-3145555-app`
+- A root-level `Dockerfile` in each sibling repository. They are not present at the time this infrastructure was created.
 
-El propósito principal es ver la **capacidad de desempeño con SDD** (*Spec-Driven Development*,
-desarrollo guiado por especificación): cómo se lee, se interpreta y se aplica una especificación
-para llevarla a un stack distinto. El código es el medio, no el fin.
+## Configuration
 
-## Entrega
+Create a local environment file from the example and replace every placeholder with local, non-production values:
 
-Cuenta lo que quede **subido a los forks antes de las 11:00 a. m.** Lo que llegue después no se revisa.
-No hay prórroga: suban avances parciales con commits pequeños durante la prueba.
+```sh
+cp .env.example .env
+```
 
-## Los seis repositorios
+`.env` is ignored by Git. Do not commit application keys, JWT secrets, database passwords, or administrator credentials.
 
-| Repositorio | Qué va ahí |
+The PostgreSQL container creates an empty `library` database and its database user only. It does not create the `library` schema,
+application tables, indexes, constraints, extensions, or seed data.
+
+## Start the services
+
+After the API and frontend repositories provide their Dockerfiles, run from this repository:
+
+```sh
+docker compose up --build
+```
+
+Service endpoints use the local ports defined in `.env`:
+
+| Service | Default local endpoint |
 |---|---|
-| [`test-manager-library-3145555-docs`](https://github.com/code-sena/test-manager-library-3145555-docs) | El spec: `spec-python/` y `spec-.net/` |
-| [`test-manager-library-3145555-api`](https://github.com/code-sena/test-manager-library-3145555-api) | Backend en PHP (Laravel) |
-| [`test-manager-library-3145555-app`](https://github.com/code-sena/test-manager-library-3145555-app) | Frontend en React |
-| [`test-manager-library-3145555-page`](https://github.com/code-sena/test-manager-library-3145555-page) | Sitio público estático de presentación |
-| [`test-manager-library-3145555-infra`](https://github.com/code-sena/test-manager-library-3145555-infra) | Contenedores, red, volúmenes y motor de base de datos vacío |
-| [`test-manager-library-3145555-tool`](https://github.com/code-sena/test-manager-library-3145555-tool) | Utilidades: sembrador de datos de demostración |
+| PostgreSQL 16 | `localhost:5432` |
+| Laravel API | `http://localhost:8000` |
+| React frontend | `http://localhost:5173` |
+
+The API waits for PostgreSQL health, and the frontend starts after the API service starts. The API repository is responsible for
+running Laravel migrations and creating the initial administrator from environment variables. Do not add DDL or seed scripts to this repository.
+
+## Validate the Compose definition
+
+```sh
+docker compose --env-file .env.example config
+```
+
+This validates Compose interpolation only. A successful `docker compose up --build` additionally requires the missing API and frontend
+Dockerfiles, Laravel runtime configuration, React runtime configuration, and integration tests. Therefore, T-20 is not yet complete.
+
+## Repository responsibilities
+
+| Repository | Responsibility |
+|---|---|
+| `test-manager-library-3145555-infra` | Containers, network, PostgreSQL volume, and empty database engine |
+| `test-manager-library-3145555-api` | Laravel application, migrations, schema `library`, seed categories, initial administrator, API contract, and business rules |
+| `test-manager-library-3145555-app` | React frontend |
+| `test-manager-library-3145555-docs` | Authoritative specifications |
